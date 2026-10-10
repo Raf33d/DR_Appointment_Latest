@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  font-family: Outfit, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #f3f7f6;
+  color: #17313b;
+}
+
+button, a, input, select, textarea {
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #0f766e !important;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+  outline: none;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #b9cbc8; border-radius: 8px; }
+
+.admin-page { width: 100%; padding: 24px; }
+.admin-panel {
+  background: #ffffff;
+  border: 1px solid #dfe9e7;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(23, 49, 59, 0.05);
+}
+
+@media (max-width: 640px) {
+  .admin-page { padding: 16px; }
+}

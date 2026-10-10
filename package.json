@@ -1,0 +1,12 @@
+{
+  "name": "medbook-appointments",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n API,PATIENT,STAFF \"npm run start --prefix backend\" \"npm run dev --prefix frontend\" \"npm run dev --prefix admin\"",
+    "build": "npm run build --prefix frontend && npm run build --prefix admin",
+    "import:mongodb": "npm run import:mongodb --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
+}
