@@ -2,13 +2,13 @@ import SqlModel from './sqlModel.js'
 
 class Doctor extends SqlModel {
   constructor(data = {}, isNew = true) {
-    super({ image: '', available: true, slots_booked: {}, ...data }, isNew)
+    super({ available: true, slots_booked: {}, ...data }, isNew)
   }
 }
 
 Doctor.table = 'doctors'
 Doctor.fields = [
-  '_id', 'name', 'email', 'password', 'image', 'speciality', 'degree',
+  '_id', 'name', 'email', 'password', 'speciality', 'degree',
   'experience', 'about', 'available', 'fees', 'address', 'date', 'slots_booked'
 ]
 

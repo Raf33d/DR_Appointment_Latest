@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { getPool } from '../config/mysql.js'
+import { getDatabase } from '../config/sqlite.js'
 
 const columnNames = {
   _id: 'id',
@@ -38,7 +38,11 @@ const jsonFields = new Set(['address', 'slots_booked', 'userData', 'docData'])
 const booleanFields = new Set(['available', 'cancelled', 'payment', 'isCompleted'])
 const numericFields = new Set(['fees', 'amount', 'date', 'paymentDate'])
 
-const encode = (field, value) => jsonFields.has(field) ? JSON.stringify(value ?? {}) : value
+const encode = (field, value) => {
+  if (jsonFields.has(field)) return JSON.stringify(value ?? {})
+  if (booleanFields.has(field)) return value ? 1 : 0
+  return value
+}
 const decode = (row, fields) => {
   const record = { _id: row.id }
   for (const field of fields) {
@@ -69,7 +73,7 @@ const sqlWhere = (filter, fields) => {
     const column = columnNames[field]
     if (!column || !fields.includes(field) && field !== '_id') throw new Error(`Unsupported database filter: ${field}`)
     clauses.push(`\`${column}\` = ?`)
-    values.push(value)
+    values.push(typeof value === 'boolean' ? Number(value) : value)
   }
   return { clause: clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '', values }
 }
@@ -91,7 +95,7 @@ class SqlQuery {
   async execute() {
     const { clause, values } = sqlWhere(this.filter, this.model.fields)
     const orderColumn = this.model.orderColumn || 'created_at'
-    const [rows] = await getPool().execute(`SELECT * FROM \`${this.model.table}\`${clause} ORDER BY \`${orderColumn}\` ASC`, values)
+    const rows = getDatabase().prepare(`SELECT * FROM \`${this.model.table}\`${clause} ORDER BY \`${orderColumn}\` ASC`).all(...values)
     const records = rows.map(row => {
       const data = decode(row, this.model.fields.filter(field => !this.excluded.has(field)))
       return new this.model(data, false)
@@ -124,14 +128,13 @@ class SqlModel {
     const columns = ['id', ...fields.map(field => columnNames[field])]
     const values = [this._id, ...fields.map(field => encode(field, this[field]))]
     if (this._isNew) {
-      await getPool().execute(
-        `INSERT INTO \`${this.constructor.table}\` (${columns.map(column => `\`${column}\``).join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`,
-        values
-      )
+      getDatabase().prepare(
+        `INSERT INTO \`${this.constructor.table}\` (${columns.map(column => `\`${column}\``).join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`
+      ).run(...values)
       this._isNew = false
     } else {
       const setters = fields.map(field => `\`${columnNames[field]}\` = ?`).join(', ')
-      await getPool().execute(`UPDATE \`${this.constructor.table}\` SET ${setters} WHERE id = ?`, [...values.slice(1), this._id])
+      getDatabase().prepare(`UPDATE \`${this.constructor.table}\` SET ${setters} WHERE id = ?`).run(...values.slice(1), this._id)
     }
     return this
   }
@@ -142,13 +145,14 @@ class SqlModel {
 
   static async deleteMany(filter = {}) {
     const { clause, values } = sqlWhere(filter, this.fields)
-    return getPool().execute(`DELETE FROM \`${this.table}\`${clause}`, values)
+    const result = getDatabase().prepare(`DELETE FROM \`${this.table}\`${clause}`).run(...values)
+    return { deletedCount: result.changes }
   }
 
   static async deleteOne(filter = {}) {
     const record = await new SqlQuery(this, filter, true).execute()
     if (!record) return { deletedCount: 0 }
-    await getPool().execute(`DELETE FROM \`${this.table}\` WHERE id = ?`, [record._id])
+    getDatabase().prepare(`DELETE FROM \`${this.table}\` WHERE id = ?`).run(record._id)
     return { deletedCount: 1 }
   }
 
@@ -174,11 +178,10 @@ class SqlModel {
     if (fields.length === 0) return options.new ? existing : null
     const { clause, values: whereValues } = sqlWhere(filter, this.fields)
     const setValues = fields.map(field => encode(field, existing[field]))
-    const [result] = await getPool().execute(
-      `UPDATE \`${this.table}\` SET ${fields.map(field => `\`${columnNames[field]}\` = ?`).join(', ')}${clause}`,
-      [...setValues, ...whereValues]
-    )
-    if (result.affectedRows === 0) return null
+    const result = getDatabase().prepare(
+      `UPDATE \`${this.table}\` SET ${fields.map(field => `\`${columnNames[field]}\` = ?`).join(', ')}${clause}`
+    ).run(...setValues, ...whereValues)
+    if (result.changes === 0) return null
     return options.new ? new SqlQuery(this, { _id: existing._id }, true).execute() : null
   }
 }

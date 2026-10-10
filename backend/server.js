@@ -3,7 +3,7 @@ import cors from 'cors'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import 'dotenv/config'
-import { connectDB, disconnectDB, getPool } from './config/mysql.js'
+import { connectDB, disconnectDB, getDatabase } from './config/sqlite.js'
 import adminRouter from './routes/adminRoute.js'
 import doctorRouter from './routes/doctorRoute.js'
 import userRouter from './routes/userRoute.js'
@@ -25,11 +25,11 @@ app.use('/uploads', express.static(uploadDirectory))
 
 app.use('/api', (req, res, next) => {
     try {
-        getPool()
+        getDatabase()
     } catch {
         return res.status(503).json({
             success: false,
-            message: 'The local MySQL database is unavailable. Restart the backend and try again.'
+            message: 'The local database is unavailable. Restart the backend and try again.'
         })
     }
 

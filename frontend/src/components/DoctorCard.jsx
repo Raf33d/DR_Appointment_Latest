@@ -9,7 +9,7 @@ const DoctorCard = ({ doctor, onClick }) => {
       <div className='p-4'>
         <div className={`mb-2 flex items-center gap-2 text-xs font-medium ${doctor.available ? 'text-primary' : 'text-gray-500'}`}>
           <span className={`h-2 w-2 rounded-full ${doctor.available ? 'bg-primary' : 'bg-gray-400'}`} />
-          {doctor.available ? 'Available today' : 'Currently unavailable'}
+          {doctor.available ? 'Appointments open' : 'Currently unavailable'}
         </div>
         <div className='flex items-start justify-between gap-3'>
           <div className='min-w-0'>

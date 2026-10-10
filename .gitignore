@@ -3,8 +3,7 @@ node_modules/
 **/.env
 **/.env.*
 !**/.env.example
-backend/.mongodb-data/
-backend/.mysql*/
+backend/data/*.db*
 backend/uploads/
 frontend/dist/
 admin/dist/

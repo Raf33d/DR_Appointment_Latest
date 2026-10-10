@@ -1,2 +1,3 @@
-.mongodb-data/
+.env
 uploads/
+data/*.db*

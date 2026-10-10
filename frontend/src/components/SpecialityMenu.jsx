@@ -1,18 +1,20 @@
 import React from 'react'
 import { specialityData } from '../assets/assets'
 import { Link } from 'react-router-dom'
+import { ArrowUpRight } from 'lucide-react'
+
 const SpecialityMenu = () => {
   return (
-    <section className='py-20' id='speciality'>
-      <div className='mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
-        <div><p className='section-kicker'>Browse care</p><h2 className='page-title mt-2'>Find the right specialist</h2></div>
-        <p className='max-w-md text-sm leading-6 text-gray-500'>Choose a speciality to see available doctors and appointment times.</p>
+    <section className='py-12 sm:py-16' id='speciality'>
+      <div className='mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
+        <div><p className='section-kicker'>Explore by speciality</p><h2 className='page-title mt-2'>Start with what you need</h2></div>
+        <Link to='/doctors' onClick={() => scrollTo(0, 0)} className='inline-flex items-center gap-1 text-sm font-semibold text-primary hover:text-[#0b625b]'>All doctors <ArrowUpRight className='h-4 w-4' /></Link>
       </div>
-      <div className='flex gap-3 overflow-x-auto pb-3'>
-        {specialityData.map((item,index)=>(
-            <Link onClick={()=>scrollTo(0,0)} className='group flex min-w-36 flex-1 flex-col items-center rounded-lg border border-[#dfe9e7] bg-white px-4 py-5 text-center shadow-sm hover:border-[#9dcac4]' key={index} to={`/doctors/${item.speciality}`}>
-                <span className='flex h-16 w-16 items-center justify-center rounded-full bg-mist'><img className='h-12 w-12' src={item.image} alt="" /></span>
-                <p className='mt-3 text-sm font-medium text-ink'>{item.speciality}</p>
+      <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
+        {specialityData.map((item) => (
+            <Link onClick={() => scrollTo(0, 0)} className='group flex min-h-36 flex-col justify-between border border-[#dfe9e7] bg-white p-4 transition-colors hover:border-[#9dcac4] hover:bg-[#f2f7f5]' key={item.speciality} to={`/doctors/${item.speciality}`}>
+                <span className='flex h-12 w-12 items-center justify-center rounded-md bg-[#e8f2ef]'><img className='h-9 w-9' src={item.image} alt='' /></span>
+                <span className='mt-5 flex items-end justify-between gap-2 text-sm font-semibold text-ink'><span>{item.speciality}</span><ArrowUpRight className='h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-primary' /></span>
             </Link>
         ))}
       </div>

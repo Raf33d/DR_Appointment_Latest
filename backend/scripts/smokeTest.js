@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { connectDB, disconnectDB } from '../config/mysql.js'
+import { connectDB, disconnectDB } from '../config/sqlite.js'
 import appointmentModel from '../models/appointmentModel.js'
 import doctorModel from '../models/doctorModel.js'
 import userModel from '../models/userModel.js'
@@ -159,7 +159,7 @@ try {
     const updatedDoctor = await doctorModel.findById(doctor._id)
     check(updatedDoctor.slots_booked['31-12-2099'].length === 1, 'Cancelled slots were not released')
 
-    console.log('Smoke test passed: MySQL, admin, doctor, patient, booking, demo payment, cancellation, and dashboards')
+    console.log('Smoke test passed: SQLite, admin, doctor, patient, booking, demo payment, cancellation, and dashboards')
 } finally {
     const doctor = await doctorModel.findOne({ email: doctorEmail })
     const patient = await userModel.findOne({ email: patientEmail })
