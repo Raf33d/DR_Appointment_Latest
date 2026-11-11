@@ -1,0 +1,10 @@
+# Netlify: deploys the DEMO version (both websites, fake API in the browser,
+# no backend or database needed). Leave "Base directory" empty in Netlify.
+#   https://<your-site>.netlify.app        -> patient website
+#   https://<your-site>.netlify.app/admin  -> staff panel
+[build]
+  command = "npm ci --include=dev --prefix frontend && npm ci --include=dev --prefix admin && npm run build:demo"
+  publish = "demo-dist"
+
+[build.environment]
+  NODE_VERSION = "22"

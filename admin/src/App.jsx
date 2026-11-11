@@ -14,6 +14,7 @@ import { DoctorContext } from './context/DoctorContext.jsx';
 import DoctorDashboard from './pages/Doctor/DoctorDashboard.jsx';
 import DoctorAppointments from './pages/Doctor/DoctorAppointments.jsx';
 import DoctorProfile from './pages/Doctor/DoctorProfile.jsx';
+import DemoBanner from './components/DemoBanner.jsx';
 
 const App = () => {
 
@@ -24,6 +25,7 @@ const App = () => {
     <div className='min-h-screen bg-mist'>
 
       <ToastContainer />
+      <DemoBanner />
       <Navbar />
       <div className='flex min-h-[calc(100vh-65px)] items-stretch'>
         <Sidebar />
@@ -44,7 +46,7 @@ const App = () => {
     </div>
   ) : (
     <>
-
+      <DemoBanner />
       <Login />
 
       <ToastContainer />

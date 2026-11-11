@@ -13,10 +13,12 @@ import Footer from './components/Footer'
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Failed from './components/Failed'
+import DemoBanner from './components/DemoBanner'
 
 const App = () => {
   return (
     <div className='min-h-screen bg-[#f7faf9]'>
+      <DemoBanner />
       <Navbar />
       <main className='mx-auto min-h-[70vh] w-full max-w-[1280px] px-4 sm:px-6 lg:px-8'>
       <ToastContainer position='top-right' />

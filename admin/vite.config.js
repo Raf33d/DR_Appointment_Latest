@@ -6,5 +6,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/admin/' : '/',
   plugins: [react()],
-  server: {port: 10000}
+  // The shared demo/ folder sits next to the app, so allow the dev server to read it.
+  server: {fs: {allow: ['..']}, port: 10000}
 }))

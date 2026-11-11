@@ -14,7 +14,7 @@ A full-stack doctor appointment system with a patient website, a staff panel for
 ![SQLite](https://img.shields.io/badge/SQLite%20%2F%20Turso-libSQL-4ff8d2?logo=sqlite&logoColor=white)
 ![Node](https://img.shields.io/badge/Node-%E2%89%A522-5fa04e?logo=nodedotjs&logoColor=white)
 
-[Features](#-features) · [How it fits together](#-how-it-fits-together) · [Run locally](#-run-locally) · [Deploy for free](#-deploy-for-free) · [API](#-api-reference) · [Troubleshooting](#-troubleshooting)
+[Features](#-features) · [Live demo on Netlify](#-live-demo-on-netlify-easiest) · [Run locally](#-run-locally) · [Full deploy](#-deploy-for-free) · [API](#-api-reference) · [Troubleshooting](#-troubleshooting)
 
 </div>
 
@@ -87,6 +87,42 @@ Uploaded profile photos are stored in the database (`files` table) rather than o
 
 ---
 
+## 🎬 Live demo on Netlify (easiest)
+
+Want to **show people how the app works** without setting up a server or database? Deploy the demo version to Netlify. It's free and takes about 5 minutes.
+
+In the demo, a small fake API runs **inside the visitor's browser**, filled with sample doctors, patients and appointments. Every feature can be clicked through: booking, demo payments, cancelling, and the admin and doctor dashboards. Each visitor gets their own copy, saved only on their device. A yellow bar at the top shows the demo logins and has a **Reset demo** button.
+
+| Who | Email | Password |
+|---|---|---|
+| 🧑 Patient | `patient@medbook.demo` | `demo1234` |
+| 🛡️ Admin (staff panel) | `admin@medbook.demo` | `demo1234` |
+| 🩺 Doctor (staff panel) | `nadia.rahman@medbook.demo` | `demo1234` |
+
+One link holds everything: patients use `https://<your-site>.netlify.app`, staff use `https://<your-site>.netlify.app/admin` (or the **Staff login** link in the footer).
+
+### Option A · From GitHub (updates itself on every push)
+
+1. Sign up at [netlify.com](https://netlify.com) and click **Add new site → Import an existing project → GitHub**.
+2. Pick this repository. **Leave every build setting as it is.** [`netlify.toml`](netlify.toml) already says what to build.
+3. Click **Deploy** and wait 2–3 minutes. Done!
+
+Optional: rename the site under **Site configuration → Change site name**, e.g. `medbook-demo.netlify.app`.
+
+### Option B · Drag and drop (no GitHub needed)
+
+1. On your computer, in the project folder, run `npm run setup` (once), then:
+   ```bash
+   npm run build:demo
+   ```
+2. Open [app.netlify.com/drop](https://app.netlify.com/drop) and drag the new **`demo-dist`** folder onto the page.
+3. Netlify gives you a link straight away.
+
+> [!NOTE]
+> The demo never talks to a server, so nothing visitors type in is sent anywhere. To run MedBook for real, with a shared database, follow the [full deploy](#-deploy-for-free) below instead.
+
+---
+
 ## 🚀 Run locally
 
 **You need:** [Node.js 22 or newer](https://nodejs.org).
@@ -141,6 +177,7 @@ Log in to the staff panel as **Admin** with `ADMIN_EMAIL` / `ADMIN_PASSWORD`, or
 | `npm run setup` | Installs the root, backend, frontend and admin packages |
 | `npm run dev` | Starts the API, patient website and staff panel together |
 | `npm run build` | Builds both websites into their `dist/` folders |
+| `npm run build:demo` | Builds the backend-free demo into `demo-dist/` (what Netlify deploys) |
 | `npm run seed --prefix backend` | Adds 6 sample doctors (skips ones that already exist) |
 | `npm run smoke --prefix backend` | End-to-end check against a running API: books, pays, completes and cancels, then cleans up after itself |
 
@@ -156,6 +193,8 @@ Open `backend/data/medbook.db` with the free [DB Browser for SQLite](https://sql
 ---
 
 ## 🌍 Deploy for free
+
+This is the **real** version, with a working backend and a database everyone shares. If you only want to show how the app looks and works, use the [Netlify demo](#-live-demo-on-netlify-easiest) instead.
 
 The whole app goes online as **one link**, using two free services. You'll need to create the accounts and click through their dashboards yourself. Each step says exactly what to fill in.
 
@@ -332,7 +371,10 @@ Logged-in requests send a token in a header: `atoken` (admin), `dtoken` (doctor)
 
 ```text
 .
+├── netlify.toml             # Netlify: builds and publishes the backend-free demo
 ├── render.yaml              # Render Blueprint: one service for API + both websites
+├── demo/mockApi.js          # fake in-browser API + sample data used by the demo
+├── scripts/build-demo.mjs   # builds both sites in demo mode into demo-dist/
 ├── package.json             # setup / dev / build scripts for everything
 ├── backend/
 │   ├── server.js            # Express app, uploads, health check, serves the built sites

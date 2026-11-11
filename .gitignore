@@ -10,3 +10,4 @@ admin/dist/
 *.log
 .DS_Store
 Thumbs.db
+demo-dist/
