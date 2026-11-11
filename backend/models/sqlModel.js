@@ -95,7 +95,10 @@ class SqlQuery {
   async execute() {
     const { clause, values } = sqlWhere(this.filter, this.model.fields)
     const orderColumn = this.model.orderColumn || 'created_at'
-    const rows = getDatabase().prepare(`SELECT * FROM \`${this.model.table}\`${clause} ORDER BY \`${orderColumn}\` ASC`).all(...values)
+    const { rows } = await getDatabase().execute({
+      sql: `SELECT * FROM \`${this.model.table}\`${clause} ORDER BY \`${orderColumn}\` ASC`,
+      args: values
+    })
     const records = rows.map(row => {
       const data = decode(row, this.model.fields.filter(field => !this.excluded.has(field)))
       return new this.model(data, false)
@@ -128,13 +131,17 @@ class SqlModel {
     const columns = ['id', ...fields.map(field => columnNames[field])]
     const values = [this._id, ...fields.map(field => encode(field, this[field]))]
     if (this._isNew) {
-      getDatabase().prepare(
-        `INSERT INTO \`${this.constructor.table}\` (${columns.map(column => `\`${column}\``).join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`
-      ).run(...values)
+      await getDatabase().execute({
+        sql: `INSERT INTO \`${this.constructor.table}\` (${columns.map(column => `\`${column}\``).join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`,
+        args: values
+      })
       this._isNew = false
     } else {
       const setters = fields.map(field => `\`${columnNames[field]}\` = ?`).join(', ')
-      getDatabase().prepare(`UPDATE \`${this.constructor.table}\` SET ${setters} WHERE id = ?`).run(...values.slice(1), this._id)
+      await getDatabase().execute({
+        sql: `UPDATE \`${this.constructor.table}\` SET ${setters} WHERE id = ?`,
+        args: [...values.slice(1), this._id]
+      })
     }
     return this
   }
@@ -145,14 +152,14 @@ class SqlModel {
 
   static async deleteMany(filter = {}) {
     const { clause, values } = sqlWhere(filter, this.fields)
-    const result = getDatabase().prepare(`DELETE FROM \`${this.table}\`${clause}`).run(...values)
-    return { deletedCount: result.changes }
+    const result = await getDatabase().execute({ sql: `DELETE FROM \`${this.table}\`${clause}`, args: values })
+    return { deletedCount: result.rowsAffected }
   }
 
   static async deleteOne(filter = {}) {
     const record = await new SqlQuery(this, filter, true).execute()
     if (!record) return { deletedCount: 0 }
-    getDatabase().prepare(`DELETE FROM \`${this.table}\` WHERE id = ?`).run(record._id)
+    await getDatabase().execute({ sql: `DELETE FROM \`${this.table}\` WHERE id = ?`, args: [record._id] })
     return { deletedCount: 1 }
   }
 
@@ -178,10 +185,11 @@ class SqlModel {
     if (fields.length === 0) return options.new ? existing : null
     const { clause, values: whereValues } = sqlWhere(filter, this.fields)
     const setValues = fields.map(field => encode(field, existing[field]))
-    const result = getDatabase().prepare(
-      `UPDATE \`${this.table}\` SET ${fields.map(field => `\`${columnNames[field]}\` = ?`).join(', ')}${clause}`
-    ).run(...setValues, ...whereValues)
-    if (result.changes === 0) return null
+    const result = await getDatabase().execute({
+      sql: `UPDATE \`${this.table}\` SET ${fields.map(field => `\`${columnNames[field]}\` = ?`).join(', ')}${clause}`,
+      args: [...setValues, ...whereValues]
+    })
+    if (result.rowsAffected === 0) return null
     return options.new ? new SqlQuery(this, { _id: existing._id }, true).execute() : null
   }
 }

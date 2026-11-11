@@ -1,15 +1,28 @@
-import Database from 'better-sqlite3'
+import { createClient } from '@libsql/client'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const directory = path.dirname(fileURLToPath(import.meta.url))
-const databasePath = path.resolve(directory, '..', process.env.DATABASE_FILE || 'data/medbook.db')
-mkdirSync(path.dirname(databasePath), { recursive: true })
+// Two ways to run the database, same SQL either way:
+// - TURSO_DATABASE_URL set   -> hosted libSQL/SQLite database on Turso (used in production)
+// - TURSO_DATABASE_URL unset -> local SQLite file (DATABASE_FILE, default data/medbook.db)
+const remoteUrl = process.env.TURSO_DATABASE_URL?.trim()
+let url
+let databaseLocation
 
-const database = new Database(databasePath, { timeout: 5000 })
-database.pragma('journal_mode = DELETE')
-database.pragma('foreign_keys = ON')
+if (remoteUrl) {
+  url = remoteUrl
+  databaseLocation = new URL(remoteUrl.replace(/^libsql:/, 'https:')).host
+} else {
+  const directory = path.dirname(fileURLToPath(import.meta.url))
+  const databasePath = path.resolve(directory, '..', process.env.DATABASE_FILE || 'data/medbook.db')
+  mkdirSync(path.dirname(databasePath), { recursive: true })
+  url = pathToFileURL(databasePath).href
+  databaseLocation = databasePath
+}
+
+const database = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN?.trim() || undefined })
+let ready = false
 
 const tables = [
   `CREATE TABLE IF NOT EXISTS users (
@@ -59,37 +72,57 @@ const tables = [
     active_slot_key TEXT GENERATED ALWAYS AS (
       CASE WHEN cancelled = 0 THEN docId || '|' || slotDate || '|' || slotTime ELSE NULL END
     ) STORED
+  )`,
+  // Uploaded images (patient profile photos). Kept in the database because
+  // free hosting has no permanent disk: files written to disk vanish on restart.
+  `CREATE TABLE IF NOT EXISTS files (
+    id TEXT PRIMARY KEY,
+    mime TEXT NOT NULL,
+    data BLOB NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`
 ]
 
-for (const table of tables) database.exec(table)
-if (database.pragma('table_info(doctors)').some((column) => column.name === 'image')) {
-  database.exec('ALTER TABLE doctors DROP COLUMN image')
+const indexes = [
+  'CREATE UNIQUE INDEX IF NOT EXISTS appointments_active_slot_idx ON appointments(active_slot_key)',
+  'CREATE INDEX IF NOT EXISTS appointments_user_idx ON appointments(userId)',
+  'CREATE INDEX IF NOT EXISTS appointments_doctor_idx ON appointments(docId)',
+  'CREATE INDEX IF NOT EXISTS appointments_date_idx ON appointments(date)'
+]
+
+const migrate = async () => {
+  for (const statement of tables) await database.execute(statement)
+
+  const doctorColumns = await database.execute(`SELECT name FROM pragma_table_info('doctors')`)
+  if (doctorColumns.rows.some((column) => column.name === 'image')) {
+    await database.execute('ALTER TABLE doctors DROP COLUMN image')
+  }
+  await database.execute(`
+    UPDATE appointments
+    SET docData = json_remove(docData, '$.image')
+    WHERE json_valid(docData) AND json_type(docData, '$.image') IS NOT NULL
+  `)
+
+  for (const statement of indexes) await database.execute(statement)
 }
-database.exec(`
-  UPDATE appointments
-  SET docData = json_remove(docData, '$.image')
-  WHERE json_valid(docData) AND json_type(docData, '$.image') IS NOT NULL;
-`)
-database.exec(`
-  CREATE UNIQUE INDEX IF NOT EXISTS appointments_active_slot_idx ON appointments(active_slot_key);
-  CREATE INDEX IF NOT EXISTS appointments_user_idx ON appointments(userId);
-  CREATE INDEX IF NOT EXISTS appointments_doctor_idx ON appointments(docId);
-  CREATE INDEX IF NOT EXISTS appointments_date_idx ON appointments(date);
-`)
 
 const connectDB = async () => {
-  if (!database.open) throw new Error('SQLite database is closed; restart the backend.')
-  console.log(`SQLite connected (${databasePath})`)
+  if (database.closed) throw new Error('Database client is closed; restart the backend.')
+  if (!ready) {
+    await migrate()
+    ready = true
+  }
+  console.log(`Database connected (${remoteUrl ? 'Turso: ' : 'local file: '}${databaseLocation})`)
 }
 
 const getDatabase = () => {
-  if (!database.open) throw new Error('SQLite is not connected')
+  if (!ready || database.closed) throw new Error('Database is not connected')
   return database
 }
 
 const disconnectDB = async () => {
-  if (database.open) database.close()
+  if (!database.closed) database.close()
+  ready = false
 }
 
-export { connectDB, disconnectDB, getDatabase, databasePath }
+export { connectDB, disconnectDB, getDatabase, databaseLocation }

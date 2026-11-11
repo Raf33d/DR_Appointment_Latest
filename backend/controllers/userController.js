@@ -4,6 +4,7 @@ import userModel from '../models/userModel.js';
 import jwt from 'jsonwebtoken';
 import doctorModel from '../models/doctorModel.js';
 import appointmentModel from '../models/appointmentModel.js';
+import { saveFile } from '../models/fileStore.js';
 
 
 //API to register user
@@ -118,7 +119,9 @@ const updateProfile = async (req, res) => {
 
 
         if (imageFile) {
-            const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${imageFile.filename}`;
+            // Old photos are kept: past appointments store a copy of the patient data that links to them.
+            const fileId = await saveFile(imageFile);
+            const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${fileId}`;
             await userModel.findByIdAndUpdate(userId, { image: imageUrl });
         }
         res.json({ success: true, message: "Profile updated successfully" });
@@ -175,7 +178,6 @@ const bookAppointment = async (req, res) => {
             amount: docData.fees,
             slotTime,
             slotDate,
-            amount: docData.fees,
             date: Date.now()
         }
 

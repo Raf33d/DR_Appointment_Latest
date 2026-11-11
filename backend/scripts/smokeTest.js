@@ -4,7 +4,7 @@ import appointmentModel from '../models/appointmentModel.js'
 import doctorModel from '../models/doctorModel.js'
 import userModel from '../models/userModel.js'
 
-const apiUrl = 'http://127.0.0.1:4000'
+const apiUrl = process.env.API_URL || `http://127.0.0.1:${process.env.PORT || 4000}`
 const runId = Date.now()
 const doctorEmail = `smoke.doctor.${runId}@example.com`
 const patientEmail = `smoke.patient.${runId}@example.com`
