@@ -26,65 +26,53 @@ const Appointment = () => {
 
   }
 
-  const getAvailableSlots = async () => {
+  // Clinic hours: 30-minute slots from 10:00 until 21:00.
+  const OPEN_HOUR = 10
+  const CLOSE_HOUR = 21
+  const DAYS_SHOWN = 7
+
+  const toSlotDate = (date) => date.getDate() + '-' + (date.getMonth() + 1) + '-' + date.getFullYear()
+
+  // Builds the next 7 bookable days. A day whose opening hours have already
+  // passed (e.g. today, late in the evening) is skipped so the list always
+  // has 7 days. Fully booked days are kept, with an empty slot list.
+  const getAvailableSlots = () => {
     if (!docInfo) return
 
-    setDocSlots([]);
-    // ...existing code...
+    const now = new Date()
+    const days = []
+    const day = new Date(now)
+    day.setHours(0, 0, 0, 0)
 
-    // ...existing code...
+    while (days.length < DAYS_SHOWN) {
+      const closing = new Date(day)
+      closing.setHours(CLOSE_HOUR, 0, 0, 0)
 
-
-    //getting current date
-    let today = new Date()
-
-    for (let i = 0; i < 7; i++) {
-      //getting date with index
-      let currentDate = new Date(today)
-      currentDate.setDate(today.getDate() + i)
-      //setting end time of the date with index
-      let endTime = new Date()
-      endTime.setDate(today.getDate() + i)
-      endTime.setHours(21, 0, 0, 0)
-
-      //setting hours
-      if (today.getDate() === currentDate.getDate()) {
-        currentDate.setHours(currentDate.getHours() > 10 ? currentDate.getHours() + 1 : 10)
-        currentDate.setMinutes(currentDate.getMinutes() > 30 ? 30 : 0)
-      } else {
-        currentDate.setHours(10)
-        currentDate.setMinutes(0)
-      }
-      let timeSlots = []
-      while (currentDate < endTime) {
-        let formattedTime = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-
-        let day = currentDate.getDate()
-        let month = currentDate.getMonth() + 1 // Months are zero-based in JavaScript
-        let year = currentDate.getFullYear()
-
-        const slotDate = day + '-' + month + '-' + year
-        const slotTime = formattedTime
-
-        const isSlotAvailable = docInfo.slots_booked[slotDate] && docInfo.slots_booked[slotDate].includes(slotTime) ? false : true
-
-        if (isSlotAvailable) {
-          // addslot to array
-          timeSlots.push({
-            datetime: new Date(currentDate),
-            time: formattedTime
-          })
-
+      if (closing > now) {
+        // First slot: opening time, or the next half hour that is at least 30 minutes away.
+        const slot = new Date(day)
+        slot.setHours(OPEN_HOUR, 0, 0, 0)
+        while (slot < closing && slot.getTime() - now.getTime() < 30 * 60 * 1000) {
+          slot.setMinutes(slot.getMinutes() + 30)
         }
 
+        const slotDate = toSlotDate(day)
+        const booked = docInfo.slots_booked?.[slotDate] || []
+        const slots = []
+        while (slot < closing) {
+          const time = slot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          if (!booked.includes(time)) slots.push({ datetime: new Date(slot), time })
+          slot.setMinutes(slot.getMinutes() + 30)
+        }
 
-
-        // increment current time by 30 minute
-        currentDate.setMinutes(currentDate.getMinutes() + 30)
+        days.push({ date: new Date(day), slots })
       }
-      setDocSlots(prev => ([...prev, timeSlots]))
 
+      day.setDate(day.getDate() + 1)
     }
+
+    setDocSlots(days)
+    setSlotIndex((current) => (days[current]?.slots.length ? current : Math.max(0, days.findIndex((d) => d.slots.length))))
   }
 
 
@@ -94,19 +82,13 @@ const Appointment = () => {
       return navigate('/login')
     }
 
-    if (!slotTime || !docSlots[slotIndex]?.[0]) {
+    if (!slotTime || !docSlots[slotIndex]?.slots.length) {
       return toast.warn('Please choose an available time')
     }
 
     try {
 
-      const date = docSlots[slotIndex][0].datetime
-
-      let day = date.getDate()
-      let month = date.getMonth() + 1 // Months are zero-based in JavaScript
-      let year = date.getFullYear()
-
-      const slotDate = day + '-' + month + '-' + year
+      const slotDate = toSlotDate(docSlots[slotIndex].date)
 
       const { data } = await axios.post(backendUrl + '/api/user/book-appointment', { docId, slotDate, slotTime }, { headers: { token } });
 
@@ -153,17 +135,26 @@ const Appointment = () => {
       <section className='mt-8 rounded-lg border border-[#dfe9e7] bg-white p-5 sm:p-7'>
         <div className='flex items-center gap-3'><span className='flex h-10 w-10 items-center justify-center rounded-lg bg-mist text-primary'><CalendarDays className='h-5 w-5' /></span><div><h2 className='font-semibold text-ink'>Choose a time</h2><p className='text-xs text-gray-500'>Available 30-minute appointment slots</p></div></div>
         <div className='mt-6 flex w-full gap-2 overflow-x-auto pb-2'>
-          {
-            docSlots.length && docSlots.map((item, index) => (
-              <button onClick={() => { setSlotIndex(index); setSlotTime('') }} className={`min-w-[76px] rounded-lg border px-3 py-3 text-center text-sm ${slotIndex === index ? 'border-primary bg-primary text-white' : 'border-[#dfe9e7] bg-white text-gray-600 hover:border-primary'}`} key={index}>
-                <span className='block text-xs'>{item[0] && daysOfWeek[item[0].datetime.getDay()]}</span>
-                <span className='mt-1 block text-lg font-semibold'>{item[0] && item[0].datetime.getDate()}</span>
+          {docSlots.map((item, index) => {
+            const full = item.slots.length === 0
+            const selected = slotIndex === index
+            return (
+              <button
+                key={index}
+                disabled={full}
+                onClick={() => { setSlotIndex(index); setSlotTime('') }}
+                title={full ? 'No free times on this day' : undefined}
+                className={`min-w-[76px] rounded-lg border px-3 py-3 text-center text-sm ${full ? 'cursor-not-allowed border-[#eef2f1] bg-[#f6f8f8] text-gray-300' : selected ? 'border-primary bg-primary text-white' : 'border-[#dfe9e7] bg-white text-gray-600 hover:border-primary'}`}
+              >
+                <span className='block text-xs'>{daysOfWeek[item.date.getDay()]}</span>
+                <span className='mt-1 block text-lg font-semibold'>{item.date.getDate()}</span>
+                {full && <span className='mt-0.5 block text-[10px] font-medium uppercase tracking-wide'>Full</span>}
               </button>
-            ))
-          }
+            )
+          })}
         </div>
         <div className='mt-4 flex w-full items-center gap-2 overflow-x-auto pb-2'>
-          {docSlots.length > 0 && docSlots[slotIndex]?.map((item, index) => (
+          {docSlots[slotIndex]?.slots.map((item, index) => (
             <button onClick={() => setSlotTime(item.time)} className={`flex shrink-0 items-center gap-2 rounded-lg border px-4 py-2.5 text-sm ${item.time === slotTime ? 'border-ink bg-ink text-white' : 'border-[#dfe9e7] text-gray-600 hover:border-primary'}`} key={index}>
               <Clock3 className='h-3.5 w-3.5' />
               {item.time.toLowerCase()}
