@@ -1,6 +1,9 @@
 import express from 'express'
 import cors from 'cors'
 import multer from 'multer'
+import path from 'node:path'
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import 'dotenv/config'
 import { connectDB, disconnectDB, getDatabase } from './config/sqlite.js'
 import { getFile } from './models/fileStore.js'
@@ -66,10 +69,6 @@ app.use('/api/admin', adminRouter)
 app.use('/api/doctor', doctorRouter)
 app.use('/api/user', userRouter)
 
-app.get('/', (req, res) => {
-    res.send('API WORKING')
-})
-
 // Used by Render's health check.
 app.get('/health', (req, res) => {
     try {
@@ -79,6 +78,27 @@ app.get('/health', (req, res) => {
         res.status(503).json({ ok: false })
     }
 })
+
+// One link for everything: when the websites have been built (npm run build),
+// the API also serves them. Patient website at "/", staff panel at "/admin/".
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const patientSite = path.join(projectRoot, 'frontend', 'dist')
+const staffSite = path.join(projectRoot, 'admin', 'dist')
+const servesSites = existsSync(path.join(patientSite, 'index.html')) && existsSync(path.join(staffSite, 'index.html'))
+
+if (servesSites) {
+    app.use('/admin', express.static(staffSite, { index: false }))
+    app.use(express.static(patientSite, { index: false }))
+
+    // Single-page apps: any other page address gets the app's index.html,
+    // so links like /my-appointments or /admin/doctor-dashboard work when refreshed.
+    app.get(/^\/admin(\/.*)?$/, (req, res) => res.sendFile(path.join(staffSite, 'index.html')))
+    app.get(/^\/(?!api\/|uploads\/).*/, (req, res) => res.sendFile(path.join(patientSite, 'index.html')))
+} else {
+    app.get('/', (req, res) => {
+        res.send('API WORKING')
+    })
+}
 
 // Turn upload and other unexpected errors into JSON the web apps can show.
 app.use((error, req, res, next) => {

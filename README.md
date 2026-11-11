@@ -67,17 +67,19 @@ flowchart LR
     A["⚙️ REST API<br/><sub>backend/ · Express</sub>"]
     D[("🗄️ Database<br/><sub>SQLite file locally<br/>Turso when deployed</sub>")]
 
-    P -- "HTTPS + JSON" --> A
-    S -- "HTTPS + JSON" --> A
+    P -- "/api" --> A
+    S -- "/api" --> A
     A --> D
 ```
 
-| Folder | What it is | Local URL | Hosted on |
+| Folder | What it is | Local URL (`npm run dev`) | Deployed address |
 |---|---|---|---|
-| [`frontend/`](frontend) | Patient website | http://localhost:50000 | Netlify |
-| [`admin/`](admin) | Staff panel (admin and doctor logins) | http://localhost:10000 | Netlify |
-| [`backend/`](backend) | REST API | http://localhost:4000 | Render |
+| [`frontend/`](frontend) | Patient website | http://localhost:50000 | `https://<your-app>.onrender.com/` |
+| [`admin/`](admin) | Staff panel (admin and doctor logins) | http://localhost:10000 | `https://<your-app>.onrender.com/admin/` |
+| [`backend/`](backend) | REST API | http://localhost:4000 | `https://<your-app>.onrender.com/api/…` |
 | — | Database | `backend/data/medbook.db` | Turso |
+
+**One link for everything.** When deployed, the API also serves both built websites, so the whole app lives at a single address: patients use the main link, and staff add `/admin` (or click **Staff login** in the site footer).
 
 The backend talks to the database through [`@libsql/client`](https://github.com/tursodatabase/libsql-client-ts). With no `TURSO_DATABASE_URL` set it uses a plain SQLite file. With one set it uses a hosted Turso database. The SQL is the same either way, and the tables are created automatically on startup.
 
@@ -155,16 +157,15 @@ Open `backend/data/medbook.db` with the free [DB Browser for SQLite](https://sql
 
 ## 🌍 Deploy for free
 
-The plan uses three free services. You'll need to create accounts and click through their dashboards yourself. Each step below says exactly what to fill in.
+The whole app goes online as **one link**, using two free services. You'll need to create the accounts and click through their dashboards yourself. Each step says exactly what to fill in.
 
 | Piece | Service | Why this one |
 |---|---|---|
 | 🗄️ Database | [Turso](https://turso.tech) | Hosted SQLite. Keeps your data permanently. |
-| ⚙️ API | [Render](https://render.com) | Runs the Express server. Set up from [`render.yaml`](render.yaml). |
-| 🖥️ Both websites | [Netlify](https://netlify.com) | Hosts static sites. Set up from each folder's `netlify.toml`. |
+| ⚙️ API + both websites | [Render](https://render.com) | One free web service. Set up from [`render.yaml`](render.yaml). |
 
 > [!IMPORTANT]
-> **Push this project to GitHub first.** Render and Netlify both deploy straight from your GitHub repository, and redeploy automatically every time you push.
+> **Push this project to GitHub first.** Render deploys straight from your GitHub repository and redeploys automatically every time you push to `main`.
 
 ### Step 1 · Create the database on Turso
 
@@ -173,7 +174,7 @@ The plan uses three free services. You'll need to create accounts and click thro
 3. Open the database and copy its **URL**. It starts with `libsql://`.
 4. Create a **token** for the database (read & write) and copy it.
 
-Keep both values for step 2. The tables are created automatically the first time the API starts.
+Keep both values for step 2. The tables are created automatically the first time the app starts.
 
 <details>
 <summary>Want to bring your local data along?</summary>
@@ -188,10 +189,10 @@ This copies **everything** in the file, including test patients and their passwo
 
 </details>
 
-### Step 2 · Put the API on Render
+### Step 2 · Put the app on Render
 
 1. Sign up at [render.com](https://render.com) and connect your GitHub account.
-2. Click **New → Blueprint** and choose this repository. Render reads [`render.yaml`](render.yaml) and sets up a free web service called `medbook-api`.
+2. Click **New → Blueprint** and choose this repository. Render reads [`render.yaml`](render.yaml) and sets up a free web service called `medbook`. It installs everything, builds both websites and starts the API.
 3. Render asks for these values:
 
    | Variable | Value |
@@ -200,40 +201,17 @@ This copies **everything** in the file, including test patients and their passwo
    | `ADMIN_PASSWORD` | A strong password for the admin login |
    | `TURSO_DATABASE_URL` | The `libsql://…` URL from step 1 |
    | `TURSO_AUTH_TOKEN` | The token from step 1 |
-   | `CORS_ORIGINS` | Leave empty for now (filled in at step 4) |
 
    `JWT_SECRET` is generated for you.
-4. Click **Apply** and wait for the deploy to finish.
-5. Copy your API URL, e.g. `https://medbook-api.onrender.com`. Opening `…/health` should show `{"ok":true}`.
+4. Click **Apply** and wait for the first deploy to finish (a few minutes).
+5. Open your link, e.g. `https://medbook.onrender.com`:
+   - **Patients:** `https://medbook.onrender.com`
+   - **Staff:** `https://medbook.onrender.com/admin`
 
-### Step 3 · Put both websites on Netlify
+> [!TIP]
+> If the name `medbook` is taken, Render adds a few letters to the address. You can see your exact link at the top of the service page.
 
-Do this **twice**: once for `frontend` and once for `admin`.
-
-1. Sign up at [netlify.com](https://netlify.com) and click **Add new site → Import an existing project → GitHub**, then pick this repository.
-2. Set **Base directory** to `frontend` the first time, and `admin` the second time. The build command (`npm run build`) and publish folder (`dist`) are read from that folder's `netlify.toml`.
-3. Under **Environment variables**, add:
-
-   | Variable | Value |
-   |---|---|
-   | `VITE_BACKEND_URL` | Your Render API URL from step 2 (no trailing `/` needed) |
-
-4. Click **Deploy**. Rename the sites under **Site configuration → Change site name** if you like, e.g. `medbook-patients.netlify.app` and `medbook-staff.netlify.app`.
-
-> [!WARNING]
-> `VITE_BACKEND_URL` is baked in when the site is built. If you change it later, trigger a new deploy in Netlify (**Deploys → Trigger deploy**).
-
-### Step 4 · Lock the API to your two sites (recommended)
-
-Back on Render, open `medbook-api` → **Environment** and set:
-
-```
-CORS_ORIGINS=https://medbook-patients.netlify.app,https://medbook-staff.netlify.app
-```
-
-Use your real Netlify URLs, separated by a comma. Save, and Render restarts the API.
-
-### Step 5 · Add sample doctors (optional)
+### Step 3 · Add sample doctors (optional)
 
 Run the seed **from your computer**, pointed at Turso. Use the values from step 1 and a password the sample doctors will log in with.
 
@@ -253,10 +231,10 @@ Or skip this step and add doctors from the staff panel instead (**Admin → Add 
 
 ### 🎉 Done
 
-Share the patient website link with anyone. Staff use the staff panel link.
+Share the link with anyone. Staff use the same link with `/admin` at the end.
 
 > [!NOTE]
-> **The first visit can be slow.** Render's free plan puts the API to sleep after about 15 minutes without visitors. The next request wakes it up in roughly 30–60 seconds, and after that it's fast again. Free-plan limits change from time to time, so check each service's pricing page.
+> **The first visit can be slow.** Render's free plan puts the app to sleep after about 15 minutes without visitors. The next visit wakes it up in roughly 30–60 seconds, and after that it's fast again. Free-plan limits change from time to time, so check each service's pricing page.
 
 ---
 
@@ -273,16 +251,16 @@ Share the patient website link with anyone. Staff use the staff panel link.
 | `TURSO_DATABASE_URL` | | `libsql://…` URL. If empty, a local SQLite file is used |
 | `TURSO_AUTH_TOKEN` | | Token for the Turso database |
 | `DATABASE_FILE` | | Local SQLite file path. Default `data/medbook.db` |
-| `CORS_ORIGINS` | | Comma-separated sites allowed to call the API. Empty allows all |
+| `CORS_ORIGINS` | | Only if other websites call the API: comma-separated list. Empty allows all |
 | `SEED_DOCTOR_PASSWORD` | | Only used by `npm run seed` |
 
 The API refuses to start if any of the ✅ variables are missing.
 
-### Websites (`frontend/.env`, `admin/.env` locally, Netlify → Environment variables when deployed)
+### Websites (`frontend/.env`, `admin/.env`)
 
 | Variable | Description |
 |---|---|
-| `VITE_BACKEND_URL` | URL of the API, e.g. `http://localhost:4000` or `https://medbook-api.onrender.com` |
+| `VITE_BACKEND_URL` | Where the API runs during `npm run dev`. Default `http://localhost:4000`. Not used by the deployed site, which always talks to the server it's served from |
 
 ---
 
@@ -344,6 +322,7 @@ Logged-in requests send a token in a header: `atoken` (admin), `dtoken` (doctor)
 |---|---|---|
 | `GET` | `/health` | `{"ok":true}` when the API and database are up |
 | `GET` | `/uploads/:id` | A stored profile photo |
+| `GET` | `/`, `/admin/` | The built patient website and staff panel (when `npm run build` has been run) |
 
 </details>
 
@@ -353,19 +332,19 @@ Logged-in requests send a token in a header: `atoken` (admin), `dtoken` (doctor)
 
 ```text
 .
-├── render.yaml              # Render Blueprint for the API
+├── render.yaml              # Render Blueprint: one service for API + both websites
 ├── package.json             # setup / dev / build scripts for everything
 ├── backend/
-│   ├── server.js            # Express app, CORS, uploads, health check
+│   ├── server.js            # Express app, uploads, health check, serves the built sites
 │   ├── config/sqlite.js     # libSQL client (local file or Turso) + schema
 │   ├── controllers/         # admin, doctor and patient logic
 │   ├── middlewares/         # JWT checks for each role, image upload
 │   ├── models/              # small model layer over SQL, file storage
 │   ├── routes/              # /api/admin, /api/doctor, /api/user
 │   └── scripts/             # seed.js, smokeTest.js
-├── frontend/                # patient website  (netlify.toml inside)
+├── frontend/                # patient website  → served at /
 │   └── src/{pages,components,context,assets}
-└── admin/                   # staff panel      (netlify.toml inside)
+└── admin/                   # staff panel      → served at /admin/
     └── src/{pages/Admin,pages/Doctor,components,context,assets}
 ```
 
@@ -374,18 +353,16 @@ Logged-in requests send a token in a header: `atoken` (admin), `dtoken` (doctor)
 ## 🛠️ Troubleshooting
 
 <details>
-<summary><b>The website loads but shows "Something went wrong while fetching doctors data"</b></summary>
+<summary><b>The page takes a long time to open, or shows "Something went wrong while fetching doctors data"</b></summary>
 
-- The API may be waking up on Render. Wait up to a minute and refresh.
-- Check that `VITE_BACKEND_URL` in Netlify is your Render URL, then redeploy the site.
-- If you set `CORS_ORIGINS`, make sure it lists the exact Netlify URLs, starting with `https://`.
+The app is probably waking up on Render's free plan. Wait up to a minute and refresh.
 
 </details>
 
 <details>
-<summary><b>Refreshing a page on Netlify shows "Page not found"</b></summary>
+<summary><b>The staff panel link shows the patient website</b></summary>
 
-The site's **Base directory** must be `frontend` or `admin`, so Netlify picks up that folder's `netlify.toml`, which sends every path to `index.html`.
+Make sure the address ends in `/admin` (for example `https://medbook.onrender.com/admin`).
 
 </details>
 
@@ -395,6 +372,7 @@ The site's **Base directory** must be `frontend` or `admin`, so Netlify picks up
 Open **Logs** on Render:
 - `Missing required environment variables` means a required value is empty. Fill it in under **Environment**.
 - `Unable to start the database` means `TURSO_DATABASE_URL` or `TURSO_AUTH_TOKEN` is wrong or expired. Create a new token in Turso.
+- A failure during the **build** step usually means a package install or website build failed. The log line just above the error says which one.
 
 </details>
 

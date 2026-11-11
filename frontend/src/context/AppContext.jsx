@@ -9,7 +9,7 @@ export const AppContext = createContext()
 
 const AppContextProvider = (props) => {
   const currencySymbol = "Taka"
-  const backendUrl = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000').replace(/\/+$/, '')
+  const backendUrl = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000').replace(/\/+$/, '') : '' // production: the API serves this site, so use the same address
 
   const [doctors, setDoctors] = useState([]);
   const [token, setToken] = useState(localStorage.getItem('token') ? localStorage.getItem('token') : false);

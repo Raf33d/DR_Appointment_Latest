@@ -1,13 +1,17 @@
-# Render Blueprint for the MedBook API.
+# Render Blueprint: one free web service that runs the API and serves both
+# websites. Patient website at "/", staff panel at "/admin/".
 # Render dashboard -> New -> Blueprint -> pick this repository.
 services:
   - type: web
-    name: medbook-api
+    name: medbook
     runtime: node
     plan: free
-    rootDir: backend
-    buildCommand: npm ci
-    startCommand: npm start
+    buildCommand: >-
+      npm ci --prefix backend &&
+      npm ci --include=dev --prefix frontend &&
+      npm ci --include=dev --prefix admin &&
+      npm run build
+    startCommand: npm start --prefix backend
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
@@ -21,6 +25,4 @@ services:
       - key: TURSO_DATABASE_URL
         sync: false
       - key: TURSO_AUTH_TOKEN
-        sync: false
-      - key: CORS_ORIGINS
         sync: false

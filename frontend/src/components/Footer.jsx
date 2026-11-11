@@ -12,7 +12,7 @@ const Footer = () => {
           </div>
           <div>
             <p className='text-sm font-semibold text-ink'>Explore</p>
-            <div className='mt-4 flex flex-col gap-2 text-sm text-gray-500'><Link to='/doctors'>Find doctors</Link><Link to='/about'>About us</Link><Link to='/contact'>Contact</Link></div>
+            <div className='mt-4 flex flex-col gap-2 text-sm text-gray-500'><Link to='/doctors'>Find doctors</Link><Link to='/about'>About us</Link><Link to='/contact'>Contact</Link><a href={import.meta.env.DEV ? 'http://localhost:10000' : '/admin/'}>Staff login</a></div>
           </div>
           <div>
             <p className='text-sm font-semibold text-ink'>Clinic</p>
